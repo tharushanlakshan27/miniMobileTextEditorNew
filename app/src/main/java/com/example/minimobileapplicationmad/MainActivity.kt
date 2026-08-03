@@ -1,8 +1,12 @@
 package com.example.minimobileapplicationmad
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.widget.EditText
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -10,6 +14,26 @@ import com.example.minimobileapplicationmad.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
+
+    private val openFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let {
+            val intent = Intent(this, EditorActivity::class.java).apply {
+                data = it
+                putExtra("action", "open")
+            }
+            startActivity(intent)
+        }
+    }
+
+    private val createFileLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri: Uri? ->
+        uri?.let {
+            val intent = Intent(this, EditorActivity::class.java).apply {
+                data = it
+                putExtra("action", "new")
+            }
+            startActivity(intent)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,10 +51,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         binding.btnNewFile.setOnClickListener {
-            startActivity(Intent(this, EditorActivity::class.java))
+            showNewFileDialog()
         }
         binding.btnOpenFile.setOnClickListener {
-            // TODO: Implement open file
+            openFileLauncher.launch(arrayOf("text/plain", "text/markdown", "application/octet-stream"))
         }
         binding.btnRecentFiles.setOnClickListener {
             startActivity(Intent(this, RecentFilesActivity::class.java))
@@ -41,5 +65,19 @@ class MainActivity : AppCompatActivity() {
         binding.btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+    }
+
+    private fun showNewFileDialog() {
+        val input = EditText(this)
+        input.hint = "filename.txt"
+        AlertDialog.Builder(this)
+            .setTitle("New File")
+            .setView(input)
+            .setPositiveButton("Create") { _, _ ->
+                val fileName = input.text.toString().ifEmpty { "untitled.txt" }
+                createFileLauncher.launch(fileName)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }

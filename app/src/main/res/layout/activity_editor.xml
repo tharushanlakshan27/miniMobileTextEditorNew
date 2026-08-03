@@ -17,6 +17,7 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
+            android:id="@+id/btnSave"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end"
@@ -42,6 +43,7 @@
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUndo"
                 style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -49,6 +51,7 @@
                 app:icon="@android:drawable/ic_menu_revert" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRedo"
                 style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -57,6 +60,7 @@
                 android:rotationY="180" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSearch"
                 style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -64,6 +68,7 @@
                 app:icon="@android:drawable/ic_menu_search" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReplace"
                 style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

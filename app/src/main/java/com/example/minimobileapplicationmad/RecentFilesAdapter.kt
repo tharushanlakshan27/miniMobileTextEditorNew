@@ -5,9 +5,9 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.minimobileapplicationmad.databinding.ItemRecentFileBinding
 
-data class RecentFile(val name: String, val date: String)
+data class RecentFile(val name: String, val date: String, val path: String)
 
-class RecentFilesAdapter(private val files: List<RecentFile>) : RecyclerView.Adapter<RecentFilesAdapter.ViewHolder>() {
+class RecentFilesAdapter(private val files: List<RecentFile>, private val onItemClick: (String) -> Unit) : RecyclerView.Adapter<RecentFilesAdapter.ViewHolder>() {
 
     class ViewHolder(val binding: ItemRecentFileBinding) : RecyclerView.ViewHolder(binding.root)
 
@@ -20,6 +20,7 @@ class RecentFilesAdapter(private val files: List<RecentFile>) : RecyclerView.Ada
         val file = files[position]
         holder.binding.tvFileName.text = file.name
         holder.binding.tvLastModified.text = file.date
+        holder.binding.root.setOnClickListener { onItemClick(file.path) }
     }
 
     override fun getItemCount() = files.size
