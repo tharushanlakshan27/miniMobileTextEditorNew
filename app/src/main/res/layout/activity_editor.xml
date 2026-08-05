@@ -75,6 +75,22 @@
                 android:text="Replace"
                 app:icon="@android:drawable/ic_menu_share" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveVersion"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Save Version"
+                app:icon="@android:drawable/ic_menu_save" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnHistory"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="History"
+                app:icon="@android:drawable/ic_menu_recent_history" />
+
         </LinearLayout>
     </HorizontalScrollView>
 
@@ -87,6 +103,7 @@
         android:background="@android:color/transparent"
         android:hint="Start typing here..."
         android:inputType="textMultiLine"
+        android:scrollbars="vertical"
         app:layout_constraintTop_toBottomOf="@id/formattingRow"
         app:layout_constraintBottom_toTopOf="@id/bottomRow" />
 

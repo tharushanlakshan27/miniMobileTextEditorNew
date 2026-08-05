@@ -19,21 +19,60 @@ import androidx.core.view.WindowInsetsCompat
 import com.example.minimobileapplicationmad.databinding.ActivityEditorBinding
 import com.example.minimobileapplicationmad.editor.UndoRedoManager
 import com.example.minimobileapplicationmad.manager.RecentFilesManager
-import com.example.minimobileapplicationmad.syntax.KotlinSyntaxHighlighter
-import com.example.minimobileapplicationmad.syntax.MarkdownSyntaxHighlighter
+import com.example.minimobileapplicationmad.editor.syntax.KotlinSyntaxHighlighter
+import com.example.minimobileapplicationmad.editor.syntax.MarkdownSyntaxHighlighter
+import com.example.minimobileapplicationmad.editor.syntax.SyntaxTheme
 import java.io.*
+
+import io.noties.markwon.Markwon
+import io.noties.markwon.ext.tables.TablePlugin
+import io.noties.markwon.ext.tasklist.TaskListPlugin
+import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
+import kotlinx.coroutines.*
+import androidx.lifecycle.lifecycleScope
+
+import com.example.minimobileapplicationmad.autosave.AutosaveManager
+import com.example.minimobileapplicationmad.database.AppDatabase
+import com.example.minimobileapplicationmad.history.VersionHistoryActivity
+import com.example.minimobileapplicationmad.repository.FileRepository
+import com.example.minimobileapplicationmad.repository.VersionRepository
+import com.example.minimobileapplicationmad.storage.FileStorageManager
+import com.example.minimobileapplicationmad.versioncontrol.VersionManager
+import com.example.minimobileapplicationmad.viewmodel.EditorViewModel
+import com.example.minimobileapplicationmad.viewmodel.EditorViewModelFactory
+import androidx.activity.viewModels
+import android.content.Intent
 
 class EditorActivity : AppCompatActivity() {
     private lateinit var binding: ActivityEditorBinding
     private lateinit var undoRedoManager: UndoRedoManager
     private lateinit var recentFilesManager: RecentFilesManager
     private var currentUri: Uri? = null
+    private var currentHighlighter: TextWatcher? = null
+    
+    private lateinit var fileStorageManager: FileStorageManager
+    private var autosaveManager: AutosaveManager? = null
+
+    private val viewModel: EditorViewModel by viewModels {
+        val db = AppDatabase.getDatabase(applicationContext)
+        val fileRepo = FileRepository(db.fileDao())
+        val versionRepo = VersionRepository(db.versionDao())
+        fileStorageManager = FileStorageManager(applicationContext)
+        val versionManager = VersionManager(fileRepo, versionRepo, fileStorageManager)
+        EditorViewModelFactory(fileRepo, versionRepo, fileStorageManager, versionManager)
+    }
 
     private val saveAsLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri: Uri? ->
         uri?.let {
             currentUri = it
             saveFile()
             updateFileInfo()
+        }
+    }
+
+    private val versionHistoryLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ ->
+        currentUri?.let {
+            loadFileContent(it)
         }
     }
 
@@ -60,6 +99,43 @@ class EditorActivity : AppCompatActivity() {
 
         setupListeners()
         setupTextStats()
+        observeViewModel()
+    }
+
+    private fun observeViewModel() {
+        viewModel.currentFile.observe(this) { file ->
+            file?.let {
+                binding.switchReadOnly.isChecked = it.isReadOnly
+                updateEditorReadOnlyState(it.isReadOnly)
+                
+                // Initialize/Restart Autosave
+                autosaveManager?.let { am -> lifecycle.removeObserver(am) }
+                autosaveManager = AutosaveManager(
+                    fileStorageManager,
+                    it.fileName,
+                    { binding.editor.text.toString() },
+                    it.isReadOnly
+                )
+                lifecycle.addObserver(autosaveManager!!)
+                
+                if (it.isReadOnly) {
+                    Toast.makeText(this, "This file is read-only.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        viewModel.statusMessage.observe(this) { message ->
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateEditorReadOnlyState(isReadOnly: Boolean) {
+        binding.editor.isEnabled = !isReadOnly
+        binding.editor.isFocusable = !isReadOnly
+        binding.editor.isFocusableInTouchMode = !isReadOnly
+        
+        binding.btnSave.isEnabled = !isReadOnly
+        binding.btnSaveVersion.isEnabled = !isReadOnly
     }
 
     private fun setupListeners() {
@@ -84,9 +160,52 @@ class EditorActivity : AppCompatActivity() {
         }
 
         binding.switchReadOnly.setOnCheckedChangeListener { _, isChecked ->
-            binding.editor.isEnabled = !isChecked
-            binding.editor.isFocusable = !isChecked
-            binding.editor.isFocusableInTouchMode = !isChecked
+            viewModel.updateReadOnly(isChecked)
+        }
+
+        binding.btnSaveVersion.setOnClickListener {
+            showSaveVersionDialog()
+        }
+
+        binding.btnHistory.setOnClickListener {
+            viewModel.currentFile.value?.let { file ->
+                val intent = Intent(this, VersionHistoryActivity::class.java).apply {
+                    putExtra("FILE_ID", file.id)
+                }
+                versionHistoryLauncher.launch(intent)
+            }
+        }
+    }
+
+    private fun showSaveVersionDialog() {
+        val input = EditText(this)
+        input.hint = "Version name (e.g. Added Login)"
+        AlertDialog.Builder(this)
+            .setTitle("Save Version")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val versionName = input.text.toString().ifEmpty { "v${System.currentTimeMillis()}" }
+                viewModel.saveVersion(versionName, binding.editor.text.toString())
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun checkForDraft(fileName: String) {
+        if (fileStorageManager.hasDraft(fileName)) {
+            AlertDialog.Builder(this)
+                .setTitle("Recover Draft")
+                .setMessage("We found an unsaved draft for this file. Would you like to restore it?")
+                .setPositiveButton("Restore") { _, _ ->
+                    fileStorageManager.loadDraft(fileName).onSuccess { content ->
+                        binding.editor.setText(content)
+                        Toast.makeText(this, "Draft restored", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .setNegativeButton("Discard") { _, _ ->
+                    fileStorageManager.deleteDraft(fileName)
+                }
+                .show()
         }
     }
 
@@ -109,10 +228,15 @@ class EditorActivity : AppCompatActivity() {
                     val content = reader.readText()
                     binding.editor.setText(content)
                     undoRedoManager.clearHistory()
-                    setupSyntaxHighlighter(uri)
                     
                     val fileName = getFileName(uri)
                     recentFilesManager.addFile(fileName, uri.toString())
+                    
+                    viewModel.loadOrCreateFile(fileName, uri.toString())
+                    checkForDraft(fileName)
+
+                    // Set up highlighter AFTER text is set
+                    setupSyntaxHighlighter(uri)
                 }
             }
         } catch (e: Exception) {
@@ -122,13 +246,29 @@ class EditorActivity : AppCompatActivity() {
 
     private fun setupSyntaxHighlighter(uri: Uri) {
         val fileName = getFileName(uri).lowercase()
-        // For simplicity, we can't easily remove anonymous TextWatchers without keeping references.
-        // In a real app, we'd manage these better.
-        if (fileName.endsWith(".kt")) {
-            binding.editor.addTextChangedListener(KotlinSyntaxHighlighter())
-        } else if (fileName.endsWith(".md")) {
-            binding.editor.addTextChangedListener(MarkdownSyntaxHighlighter())
+        
+        currentHighlighter?.let {
+            binding.editor.removeTextChangedListener(it)
         }
+
+        val theme = if (isDarkTheme()) SyntaxTheme.createDefaultDark() else SyntaxTheme.createDefaultLight()
+
+        currentHighlighter = when {
+            fileName.endsWith(".kt") -> KotlinSyntaxHighlighter(this, theme)
+            fileName.endsWith(".md") || fileName.endsWith(".markdown") -> MarkdownSyntaxHighlighter(theme)
+            else -> null
+        }
+
+        currentHighlighter?.let {
+            binding.editor.addTextChangedListener(it)
+            // Trigger initial highlight
+            it.afterTextChanged(binding.editor.text)
+        }
+    }
+
+    private fun isDarkTheme(): Boolean {
+        return (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == 
+                android.content.res.Configuration.UI_MODE_NIGHT_YES
     }
 
     private fun saveFile() {
