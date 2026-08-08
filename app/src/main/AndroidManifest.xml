@@ -22,7 +22,8 @@
         </activity>
         <activity android:name=".EditorActivity" />
         <activity android:name=".RecentFilesActivity" />
-        <activity android:name=".VersionHistoryActivity" />
+        <activity android:name=".history.VersionHistoryActivity" />
+        <activity android:name=".versioncontrol.DiffViewerActivity" />
         <activity android:name=".SettingsActivity" />
     </application>
 
