@@ -14,19 +14,24 @@ class AutosaveManager(
 ) : DefaultLifecycleObserver {
 
     private var autosaveJob: Job? = null
+    private var initialContent: String = getContent()
+    var isEnabled: Boolean = true
 
     override fun onStart(owner: LifecycleOwner) {
-        if (!isReadOnly) {
+        if (!isReadOnly && isEnabled) {
             startAutosave(owner)
         }
     }
 
     override fun onStop(owner: LifecycleOwner) {
         stopAutosave()
-        // Save one last time when stopping
-        if (!isReadOnly) {
-            owner.lifecycleScope.launch(Dispatchers.IO) {
-                fileStorageManager.saveDraft(fileName, getContent())
+        // Save only if enabled and content changed
+        if (!isReadOnly && isEnabled) {
+            val currentContent = getContent()
+            if (currentContent != initialContent) {
+                owner.lifecycleScope.launch(Dispatchers.IO) {
+                    fileStorageManager.saveDraft(fileName, currentContent)
+                }
             }
         }
     }
@@ -35,7 +40,10 @@ class AutosaveManager(
         autosaveJob = owner.lifecycleScope.launch(Dispatchers.IO) {
             while (isActive) {
                 delay(10000) // 10 seconds
-                fileStorageManager.saveDraft(fileName, getContent())
+                val currentContent = getContent()
+                if (currentContent != initialContent) {
+                    fileStorageManager.saveDraft(fileName, currentContent)
+                }
             }
         }
     }

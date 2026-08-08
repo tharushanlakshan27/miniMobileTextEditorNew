@@ -95,6 +95,9 @@ class EditorActivity : AppCompatActivity() {
             currentUri = it
             loadFileContent(it)
             updateFileInfo()
+        } ?: run {
+            // Handle case where activity is started without data (should not happen based on current logic)
+            setupSyntaxHighlighter(Uri.EMPTY)
         }
 
         setupListeners()
@@ -203,7 +206,13 @@ class EditorActivity : AppCompatActivity() {
                     }
                 }
                 .setNegativeButton("Discard") { _, _ ->
-                    fileStorageManager.deleteDraft(fileName)
+                    fileStorageManager.deleteDraft(fileName).onSuccess {
+                        autosaveManager?.isEnabled = false
+                        binding.editor.setText("") // Clear the editor content as requested
+                        Toast.makeText(this, "Draft discarded and editor cleared", Toast.LENGTH_SHORT).show()
+                    }.onFailure {
+                        Toast.makeText(this, "Error discarding draft", Toast.LENGTH_SHORT).show()
+                    }
                 }
                 .show()
         }
@@ -253,10 +262,10 @@ class EditorActivity : AppCompatActivity() {
 
         val theme = if (isDarkTheme()) SyntaxTheme.createDefaultDark() else SyntaxTheme.createDefaultLight()
 
+        // Force Kotlin highlighting as default if no other known format matches
         currentHighlighter = when {
-            fileName.endsWith(".kt") -> KotlinSyntaxHighlighter(this, theme)
             fileName.endsWith(".md") || fileName.endsWith(".markdown") -> MarkdownSyntaxHighlighter(theme)
-            else -> null
+            else -> KotlinSyntaxHighlighter(this, theme)
         }
 
         currentHighlighter?.let {
@@ -293,7 +302,25 @@ class EditorActivity : AppCompatActivity() {
     }
 
     private fun getFileName(uri: Uri): String {
-        return uri.path?.substringAfterLast('/') ?: "untitled.txt"
+        var result: String? = null
+        if (uri.scheme == "content") {
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1) {
+                        result = cursor.getString(nameIndex)
+                    }
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/') ?: -1
+            if (cut != -1) {
+                result = result?.substring(cut + 1)
+            }
+        }
+        return result ?: "untitled.txt"
     }
 
     private fun showSearchDialog() {

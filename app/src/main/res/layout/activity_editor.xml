@@ -56,8 +56,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Redo"
-                app:icon="@android:drawable/ic_menu_revert"
-                android:rotationY="180" />
+                app:icon="@android:drawable/ic_menu_revert" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSearch"

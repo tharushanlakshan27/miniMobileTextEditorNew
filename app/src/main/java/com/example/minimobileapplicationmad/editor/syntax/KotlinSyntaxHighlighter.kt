@@ -1,41 +1,58 @@
 package com.example.minimobileapplicationmad.editor.syntax
 
 import android.content.Context
-import java.util.regex.Matcher
+import android.graphics.Color
+import android.text.Editable
+import android.text.Spannable
+import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
 import java.util.regex.Pattern
 
+/**
+ * A simplified, self-contained highlighter to ensure instant red keywords.
+ */
 class KotlinSyntaxHighlighter(
-    context: Context,
-    theme: SyntaxTheme = SyntaxTheme.createDefaultDark()
-) : SyntaxHighlighter(theme) {
+    private val context: Context,
+    private val theme: SyntaxTheme
+) : TextWatcher {
 
-    private val keywords = KeywordLoader.getKotlinKeywords(context)
-    private val pattern = RegexPatterns.getKotlinPattern(keywords)
+    private val KEYWORDS = setOf(
+        "package", "import", "class", "interface", "fun", "val", "var", 
+        "if", "else", "return", "when", "for", "while", "is", "as", "in", 
+        "object", "typealias", "this", "super", "try", "catch", "finally", 
+        "throw", "break", "continue", "do", "init", "constructor", "get", 
+        "set", "true", "false", "null"
+    )
+    
+    private val pattern: Pattern = Pattern.compile("\\b(${KEYWORDS.joinToString("|")})\\b")
+    private var isWorking = false
 
-    override fun getPattern(): Pattern = pattern
+    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
-    override fun mapGroupToType(matcher: Matcher): TokenType? {
-        return when {
-            matcher.group(1) != null -> TokenType.COMMENT
-            matcher.group(2) != null -> TokenType.STRING
-            matcher.group(3) != null -> TokenType.CHARACTER
-            matcher.group(4) != null -> {
-                val word = matcher.group(4)
-                when (word) {
-                    "package" -> TokenType.PACKAGE
-                    "import" -> TokenType.IMPORT
-                    "true", "false" -> TokenType.BOOLEAN
-                    "null" -> TokenType.NULL
-                    else -> TokenType.KEYWORD
-                }
-            }
-            matcher.group(5) != null -> TokenType.ANNOTATION
-            matcher.group(6) != null -> TokenType.FUNCTION
-            matcher.group(7) != null -> TokenType.CLASS_NAME
-            matcher.group(8) != null -> TokenType.NUMBER
-            matcher.group(9) != null -> TokenType.OPERATOR
-            matcher.group(10) != null -> TokenType.BRACKET
-            else -> null
+    override fun afterTextChanged(s: Editable?) {
+        if (isWorking || s == null) return
+        
+        isWorking = true
+        
+        // Clear all foreground spans first
+        val oldSpans = s.getSpans(0, s.length, ForegroundColorSpan::class.java)
+        for (span in oldSpans) {
+            s.removeSpan(span)
         }
+
+        val text = s.toString()
+        val matcher = pattern.matcher(text)
+        
+        while (matcher.find()) {
+            s.setSpan(
+                ForegroundColorSpan(Color.RED),
+                matcher.start(),
+                matcher.end(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        
+        isWorking = false
     }
 }
