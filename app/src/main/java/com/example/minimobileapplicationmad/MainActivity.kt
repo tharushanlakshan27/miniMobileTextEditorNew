@@ -69,9 +69,6 @@ class MainActivity : AppCompatActivity() {
         binding.btnRecentFiles.setOnClickListener {
             startActivity(Intent(this, RecentFilesActivity::class.java))
         }
-        binding.btnVersionHistory.setOnClickListener {
-            startActivity(Intent(this, VersionHistoryActivity::class.java))
-        }
         binding.btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }

@@ -21,7 +21,7 @@ class EditorViewModel(
     private val _statusMessage = MutableLiveData<String>()
     val statusMessage: LiveData<String> = _statusMessage
 
-    fun loadOrCreateFile(fileName: String, path: String) {
+    fun loadOrCreateFile(fileName: String, path: String, encoding: String = "UTF-8") {
         viewModelScope.launch {
             var file = fileRepository.getFileByPath(path)
             if (file == null) {
@@ -29,10 +29,16 @@ class EditorViewModel(
                     fileName = fileName,
                     filePath = path,
                     createdDate = System.currentTimeMillis(),
-                    modifiedDate = System.currentTimeMillis()
+                    modifiedDate = System.currentTimeMillis(),
+                    encoding = encoding
                 )
                 val id = fileRepository.insertFile(newFile)
                 file = newFile.copy(id = id)
+            } else if (file.encoding != encoding) {
+                // Update encoding if it changed (e.g. during Save As)
+                val updatedFile = file.copy(encoding = encoding)
+                fileRepository.updateFile(updatedFile)
+                file = updatedFile
             }
             _currentFile.value = file
         }

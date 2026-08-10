@@ -11,5 +11,6 @@ data class FileEntity(
     val filePath: String,
     val createdDate: Long,
     val modifiedDate: Long,
-    val isReadOnly: Boolean = false
+    val isReadOnly: Boolean = false,
+    val encoding: String = "UTF-8"
 )

@@ -26,12 +26,19 @@ class VersionManager(
 
             val versions = versionRepository.getVersionsForFileSync(fileId)
             val previousText = if (versions.isEmpty()) {
-                ""
+                // First version: Store the current text as the BASE file in local storage
+                fileStorageManager.saveVersionBase(fileId, currentText)
+                currentText
             } else {
-                reconstructTextAtVersion(versions)
+                reconstructTextAtVersion(fileId, versions)
             }
 
-            val patch = DiffHelper.generateDiff(previousText, currentText, fileEntity.fileName)
+            // For the first version, the patch is empty because it's identical to the base file
+            val patch = if (versions.isEmpty()) {
+                "" 
+            } else {
+                DiffHelper.generateDiff(previousText, currentText, fileEntity.fileName)
+            }
             
             val newVersion = VersionEntity(
                 fileId = fileId,
@@ -68,7 +75,7 @@ class VersionManager(
                 if (v.id == versionId) break
             }
 
-            val restoredText = reconstructTextAtVersion(targetVersions)
+            val restoredText = reconstructTextAtVersion(fileId, targetVersions)
             
             // 1. Save to internal storage (as backup/cache)
             fileStorageManager.saveFile(fileEntity.fileName, restoredText)
@@ -77,7 +84,8 @@ class VersionManager(
             if (fileEntity.filePath.startsWith("content://")) {
                 val uri = Uri.parse(fileEntity.filePath)
                 context.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
-                    BufferedWriter(OutputStreamWriter(outputStream, "UTF-8")).use { writer ->
+                    // Use the original file's encoding for restoration
+                    BufferedWriter(OutputStreamWriter(outputStream, fileEntity.encoding)).use { writer ->
                         writer.write(restoredText)
                     }
                 }
@@ -92,8 +100,11 @@ class VersionManager(
         }
     }
 
-    private fun reconstructTextAtVersion(versions: List<VersionEntity>): String {
-        var currentText = ""
+    private fun reconstructTextAtVersion(fileId: Long, versions: List<VersionEntity>): String {
+        // Load the base file content if it exists, otherwise start with empty string (backward compatibility)
+        val baseResult = fileStorageManager.loadVersionBase(fileId)
+        var currentText = baseResult.getOrDefault("")
+
         // Versions are assumed to be in chronological order (ASC)
         for (version in versions) {
             currentText = DiffHelper.applyPatch(currentText, version.diffPatch)

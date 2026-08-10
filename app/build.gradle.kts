@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    implementation("androidx.sqlite:sqlite-ktx:2.4.0")
 
     // Diff Utils
     implementation(libs.java.diff.utils)

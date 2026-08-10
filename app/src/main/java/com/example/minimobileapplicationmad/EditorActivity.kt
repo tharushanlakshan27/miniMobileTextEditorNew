@@ -49,6 +49,7 @@ class EditorActivity : AppCompatActivity() {
     private lateinit var recentFilesManager: RecentFilesManager
     private var currentUri: Uri? = null
     private var currentHighlighter: TextWatcher? = null
+    private var currentEncoding = "UTF-8"
     
     private lateinit var fileStorageManager: FileStorageManager
     private var autosaveManager: AutosaveManager? = null
@@ -63,10 +64,18 @@ class EditorActivity : AppCompatActivity() {
     }
 
     private val saveAsLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri: Uri? ->
-        uri?.let {
-            currentUri = it
+        uri?.let { newUri ->
+            currentUri = newUri
             saveFile()
             updateFileInfo()
+            
+            // Update ViewModel and recent files for the new file
+            val fileName = getFileName(newUri)
+            recentFilesManager.addFile(fileName, newUri.toString())
+            viewModel.loadOrCreateFile(fileName, newUri.toString(), currentEncoding)
+            
+            // Re-setup syntax highlighter for the new file extension if it changed
+            setupSyntaxHighlighter(newUri)
         }
     }
 
@@ -91,13 +100,20 @@ class EditorActivity : AppCompatActivity() {
             insets
         }
 
-        intent.data?.let {
-            currentUri = it
-            loadFileContent(it)
+        if (savedInstanceState == null) {
+            intent.data?.let {
+                currentUri = it
+                loadFileContent(it)
+                updateFileInfo()
+            } ?: run {
+                // Handle case where activity is started without data (should not happen based on current logic)
+                setupSyntaxHighlighter(Uri.EMPTY)
+            }
+        } else {
+            // Restore state if needed
+            currentUri = intent.data
             updateFileInfo()
-        } ?: run {
-            // Handle case where activity is started without data (should not happen based on current logic)
-            setupSyntaxHighlighter(Uri.EMPTY)
+            currentUri?.let { setupSyntaxHighlighter(it) }
         }
 
         setupListeners()
@@ -110,6 +126,10 @@ class EditorActivity : AppCompatActivity() {
             file?.let {
                 binding.switchReadOnly.isChecked = it.isReadOnly
                 updateEditorReadOnlyState(it.isReadOnly)
+                
+                // Update encoding from database
+                currentEncoding = it.encoding
+                updateEncodingUI()
                 
                 // Initialize/Restart Autosave
                 autosaveManager?.let { am -> lifecycle.removeObserver(am) }
@@ -138,11 +158,19 @@ class EditorActivity : AppCompatActivity() {
         binding.editor.isFocusableInTouchMode = !isReadOnly
         
         binding.btnSave.isEnabled = !isReadOnly
+        binding.btnSaveAs.isEnabled = true // Save As should always be allowed
         binding.btnSaveVersion.isEnabled = !isReadOnly
+        binding.btnReplace.isEnabled = !isReadOnly
     }
 
     private fun setupListeners() {
-        binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.toolbar.setNavigationOnClickListener { 
+            if (binding.drawerLayout.isDrawerOpen(androidx.core.view.GravityCompat.START)) {
+                binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START)
+            } else {
+                binding.drawerLayout.openDrawer(androidx.core.view.GravityCompat.START)
+            }
+        }
         
         binding.btnSave.setOnClickListener {
             if (currentUri != null) {
@@ -150,13 +178,30 @@ class EditorActivity : AppCompatActivity() {
             } else {
                 saveAsLauncher.launch("untitled.txt")
             }
+            binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START)
+        }
+
+        binding.btnSaveAs.setOnClickListener {
+            val fileName = currentUri?.let { getFileName(it) } ?: "untitled.txt"
+            showEncodingSelector { encoding ->
+                currentEncoding = encoding
+                updateEncodingUI()
+                saveAsLauncher.launch(fileName)
+            }
+            binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START)
         }
 
         binding.btnUndo.setOnClickListener { undoRedoManager.undo() }
         binding.btnRedo.setOnClickListener { undoRedoManager.redo() }
 
-        binding.btnSearch.setOnClickListener { showSearchDialog() }
-        binding.btnReplace.setOnClickListener { showReplaceDialog() }
+        binding.btnSearch.setOnClickListener { 
+            showSearchDialog()
+            binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START)
+        }
+        binding.btnReplace.setOnClickListener { 
+            showReplaceDialog()
+            binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START)
+        }
 
         binding.switchWordWrap.setOnCheckedChangeListener { _, isChecked ->
             binding.editor.setHorizontallyScrolling(!isChecked)
@@ -168,6 +213,7 @@ class EditorActivity : AppCompatActivity() {
 
         binding.btnSaveVersion.setOnClickListener {
             showSaveVersionDialog()
+            binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START)
         }
 
         binding.btnHistory.setOnClickListener {
@@ -177,6 +223,7 @@ class EditorActivity : AppCompatActivity() {
                 }
                 versionHistoryLauncher.launch(intent)
             }
+            binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START)
         }
     }
 
@@ -228,20 +275,41 @@ class EditorActivity : AppCompatActivity() {
                 binding.tvLineCount.text = "Lines: ${if (text.isEmpty()) 0 else text.split("\n").size}"
             }
         })
+        updateEncodingUI()
+    }
+
+    private fun updateEncodingUI() {
+        binding.tvEncoding.text = "Encoding: $currentEncoding"
+    }
+
+    private fun showEncodingSelector(onSelected: (String) -> Unit) {
+        val encodings = arrayOf("UTF-8", "UTF-16", "US-ASCII", "ISO-8859-1")
+        AlertDialog.Builder(this)
+            .setTitle("Select Encoding")
+            .setItems(encodings) { _, which ->
+                onSelected(encodings[which])
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun loadFileContent(uri: Uri) {
         try {
             contentResolver.openInputStream(uri)?.use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream, "UTF-8")).use { reader ->
+                // We default to UTF-8 for loading as per requirements
+                val encodingToUse = "UTF-8"
+                BufferedReader(InputStreamReader(inputStream, encodingToUse)).use { reader ->
                     val content = reader.readText()
                     binding.editor.setText(content)
                     undoRedoManager.clearHistory()
                     
+                    currentEncoding = encodingToUse
+                    updateEncodingUI()
+                    
                     val fileName = getFileName(uri)
                     recentFilesManager.addFile(fileName, uri.toString())
                     
-                    viewModel.loadOrCreateFile(fileName, uri.toString())
+                    viewModel.loadOrCreateFile(fileName, uri.toString(), encodingToUse)
                     checkForDraft(fileName)
 
                     // Set up highlighter AFTER text is set
@@ -284,9 +352,9 @@ class EditorActivity : AppCompatActivity() {
         currentUri?.let { uri ->
             try {
                 contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
-                    BufferedWriter(OutputStreamWriter(outputStream, "UTF-8")).use { writer ->
+                    BufferedWriter(OutputStreamWriter(outputStream, currentEncoding)).use { writer ->
                         writer.write(binding.editor.text.toString())
-                        Toast.makeText(this, "Saved successfully", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Saved successfully as $currentEncoding", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
@@ -353,7 +421,16 @@ class EditorActivity : AppCompatActivity() {
             )
             index = fullText.indexOf(query, index + query.length, true)
         }
+        
+        val start = binding.editor.selectionStart
+        val end = binding.editor.selectionEnd
         binding.editor.setText(spannable)
+        // Safely restore selection
+        try {
+            binding.editor.setSelection(start.coerceAtMost(spannable.length), end.coerceAtMost(spannable.length))
+        } catch (e: Exception) {
+            binding.editor.setSelection(spannable.length)
+        }
     }
 
     private fun clearSearchHighlight() {
@@ -378,8 +455,12 @@ class EditorActivity : AppCompatActivity() {
             .setView(layout)
             .setPositiveButton("Replace All") { _, _ ->
                 val text = binding.editor.text.toString()
-                val newText = text.replace(findInput.text.toString(), replaceInput.text.toString(), ignoreCase = true)
+                val findText = findInput.text.toString()
+                if (findText.isEmpty()) return@setPositiveButton
+                
+                val newText = text.replace(findText, replaceInput.text.toString(), ignoreCase = true)
                 binding.editor.setText(newText)
+                binding.editor.setSelection(binding.editor.text.length)
             }
             .show()
     }

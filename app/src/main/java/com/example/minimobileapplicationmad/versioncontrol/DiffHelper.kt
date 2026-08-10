@@ -15,13 +15,20 @@ object DiffHelper {
     }
 
     fun applyPatch(originalText: String, patchString: String): String {
-        val originalLines = originalText.lines()
-        val patch = UnifiedDiffUtils.parseUnifiedDiff(patchString.lines())
-        val revisedLines = DiffUtils.patch(originalLines, patch)
-        return revisedLines.joinToString("\n")
+        if (patchString.isEmpty()) return originalText
+        return try {
+            val originalLines = originalText.lines()
+            val patch = UnifiedDiffUtils.parseUnifiedDiff(patchString.lines())
+            val revisedLines = DiffUtils.patch(originalLines, patch)
+            revisedLines.joinToString("\n")
+        } catch (e: Exception) {
+            // If patch fails, returning original text is safer than crashing
+            originalText
+        }
     }
 
     fun reversePatch(revisedText: String, patchString: String): String {
+        if (patchString.isEmpty()) return revisedText
         val revisedLines = revisedText.lines()
         val patch = UnifiedDiffUtils.parseUnifiedDiff(patchString.lines())
         val originalLines = DiffUtils.unpatch(revisedLines, patch)

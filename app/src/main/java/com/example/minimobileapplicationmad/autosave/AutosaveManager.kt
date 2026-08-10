@@ -40,7 +40,9 @@ class AutosaveManager(
         autosaveJob = owner.lifecycleScope.launch(Dispatchers.IO) {
             while (isActive) {
                 delay(10000) // 10 seconds
-                val currentContent = getContent()
+                val currentContent = withContext(Dispatchers.Main) {
+                    getContent()
+                }
                 if (currentContent != initialContent) {
                     fileStorageManager.saveDraft(fileName, currentContent)
                 }

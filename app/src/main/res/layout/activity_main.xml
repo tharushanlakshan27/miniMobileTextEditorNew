@@ -65,17 +65,8 @@
             app:icon="@android:drawable/ic_menu_recent_history" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnVersionHistory"
-            style="@style/Widget.Material3.Button.TonalButton"
-            android:layout_width="match_parent"
-            android:layout_height="64dp"
-            android:layout_marginTop="12dp"
-            android:text="Version History"
-            app:icon="@android:drawable/ic_menu_info_details" />
-
-        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSettings"
-            style="@style/Widget.Material3.Button.TextButton"
+            style="@style/Widget.Material3.Button.TonalButton"
             android:layout_width="match_parent"
             android:layout_height="64dp"
             android:layout_marginTop="12dp"

@@ -1,163 +1,211 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
+    android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".EditorActivity">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorSurface"
-        app:navigationIcon="@android:drawable/ic_menu_revert"
-        app:title="untitled.txt"
-        app:layout_constraintTop_toTopOf="parent">
+        android:layout_height="match_parent">
 
-        <ImageButton
-            android:id="@+id/btnSave"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:layout_marginEnd="16dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_save"
-            app:tint="?attr/colorPrimary"
-            tools:ignore="ContentDescription" />
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorSurface"
+            app:navigationIcon="@android:drawable/ic_menu_more"
+            app:title="untitled.txt"
+            app:layout_constraintTop_toTopOf="parent">
 
-    </com.google.android.material.appbar.MaterialToolbar>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_gravity="end"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-    <HorizontalScrollView
-        android:id="@+id/formattingRow"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="8dp"
-        android:clipToPadding="false"
-        app:layout_constraintTop_toBottomOf="@id/toolbar">
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnUndo"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Undo"
+                    app:icon="@android:drawable/ic_menu_revert" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRedo"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Redo"
+                    app:icon="@android:drawable/ic_menu_revert" />
+
+            </LinearLayout>
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+        <EditText
+            android:id="@+id/editor"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:padding="16dp"
+            android:gravity="top"
+            android:background="@android:color/transparent"
+            android:hint="Start typing here..."
+            android:inputType="textMultiLine"
+            android:scrollbars="vertical"
+            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            app:layout_constraintBottom_toTopOf="@id/bottomRow" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:id="@+id/bottomRow"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="vertical"
+            android:background="?attr/colorSurfaceVariant"
+            android:padding="8dp"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchWordWrap"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Word Wrap"
+                    android:layout_marginEnd="16dp" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchReadOnly"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Read Only" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:id="@+id/tvCharCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Chars: 0"
+                    android:textAppearance="?attr/textAppearanceLabelSmall" />
+
+                <TextView
+                    android:id="@+id/tvLineCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="Lines: 1"
+                    android:textAppearance="?attr/textAppearanceLabelSmall" />
+
+                <TextView
+                    android:id="@+id/tvEncoding"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="Encoding: UTF-8"
+                    android:textAppearance="?attr/textAppearanceLabelSmall" />
+
+            </LinearLayout>
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Navigation Drawer (Side Bar) -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/navigationView"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="?attr/colorSurface">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Menu"
+                android:textAppearance="?attr/textAppearanceTitleLarge"
+                android:layout_marginBottom="24dp" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnUndo"
+                android:id="@+id/btnSave"
                 style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Undo"
-                app:icon="@android:drawable/ic_menu_revert" />
+                android:text="Save File"
+                android:gravity="start|center_vertical"
+                app:icon="@android:drawable/ic_menu_save" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnRedo"
+                android:id="@+id/btnSaveAs"
                 style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Redo"
-                app:icon="@android:drawable/ic_menu_revert" />
+                android:layout_marginTop="8dp"
+                android:text="Save As"
+                android:gravity="start|center_vertical"
+                app:icon="@android:drawable/ic_menu_save" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSearch"
                 style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Search"
+                android:layout_marginTop="8dp"
+                android:text="Search Text"
+                android:gravity="start|center_vertical"
                 app:icon="@android:drawable/ic_menu_search" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnReplace"
                 style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Replace"
+                android:layout_marginTop="8dp"
+                android:text="Replace Text"
+                android:gravity="start|center_vertical"
                 app:icon="@android:drawable/ic_menu_share" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSaveVersion"
                 style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:text="Save Version"
-                app:icon="@android:drawable/ic_menu_save" />
+                android:gravity="start|center_vertical"
+                app:icon="@android:drawable/ic_input_add" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnHistory"
                 style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="History"
+                android:layout_marginTop="8dp"
+                android:text="Version History"
+                android:gravity="start|center_vertical"
                 app:icon="@android:drawable/ic_menu_recent_history" />
 
         </LinearLayout>
-    </HorizontalScrollView>
+    </com.google.android.material.navigation.NavigationView>
 
-    <EditText
-        android:id="@+id/editor"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:padding="16dp"
-        android:gravity="top"
-        android:background="@android:color/transparent"
-        android:hint="Start typing here..."
-        android:inputType="textMultiLine"
-        android:scrollbars="vertical"
-        app:layout_constraintTop_toBottomOf="@id/formattingRow"
-        app:layout_constraintBottom_toTopOf="@id/bottomRow" />
-
-    <LinearLayout
-        android:id="@+id/bottomRow"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="?attr/colorSurfaceVariant"
-        android:padding="8dp"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/switchWordWrap"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Word Wrap"
-                android:layout_marginEnd="16dp" />
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/switchReadOnly"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Read Only" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="4dp">
-
-            <TextView
-                android:id="@+id/tvCharCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Chars: 0"
-                android:textAppearance="?attr/textAppearanceLabelSmall" />
-
-            <TextView
-                android:id="@+id/tvLineCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:text="Lines: 1"
-                android:textAppearance="?attr/textAppearanceLabelSmall" />
-
-        </LinearLayout>
-    </LinearLayout>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

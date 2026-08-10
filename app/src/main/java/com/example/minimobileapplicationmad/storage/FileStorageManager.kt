@@ -22,6 +22,41 @@ class FileStorageManager(private val context: Context) {
         }
     }
 
+    private val versionBaseDirectory: File by lazy {
+        File(context.filesDir, "VersionBases").apply {
+            if (!exists()) {
+                mkdirs()
+            }
+        }
+    }
+
+    fun saveVersionBase(fileId: Long, content: String): Result<Unit> {
+        return try {
+            val file = File(versionBaseDirectory, "base_$fileId.txt")
+            file.writeText(content)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun loadVersionBase(fileId: Long): Result<String> {
+        return try {
+            val file = File(versionBaseDirectory, "base_$fileId.txt")
+            if (file.exists()) {
+                Result.success(file.readText())
+            } else {
+                Result.failure(IOException("Base file not found"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun hasVersionBase(fileId: Long): Boolean {
+        return File(versionBaseDirectory, "base_$fileId.txt").exists()
+    }
+
     fun saveDraft(fileName: String, content: String): Result<Unit> {
         return try {
             val file = File(draftDirectory, fileName)
